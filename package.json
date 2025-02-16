@@ -1,0 +1,35 @@
+{
+	"name": "scryer",
+	"version": "0.0.1",
+	"type": "module",
+	"collaborators": [
+		"Mark Thom <markjordanthom@gmail.com>",
+		"Gregory Roseberry <greg@toki.waseda.jp>"
+	],
+	"description": "Scryer Prolog, a modern Prolog implementation written mostly in Rust.",
+	"license": "BSD-3-Clause",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/guregu/scryer-js"
+	},
+	"files": [
+		"dist/scryer.js",
+		"dist/index.d.ts"
+	],
+	"scripts": {
+		"compile": "cd scryer && wasm-pack build --target web -- --no-default-features",
+		"build": "node make.cjs && npx tsc",
+		"test": "node test.js"
+	},
+	"main": "dist/scryer.js",
+	"types": "dist/index.d.ts",
+	"keywords": [
+		"prolog",
+		"prolog-interpreter",
+		"prolog-system"
+	],
+	"devDependencies": {
+		"esbuild": "^0.25.0",
+		"typescript": "^5.7.3"
+	}
+}

@@ -1,0 +1,3 @@
+[submodule "scryer"]
+	path = scryer
+	url = https://github.com/bakaq/scryer-prolog.git
