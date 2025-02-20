@@ -1,6 +1,6 @@
 {
 	"name": "scryer",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"type": "module",
 	"collaborators": [
 		"Mark Thom <markjordanthom@gmail.com>",
@@ -19,7 +19,7 @@
 	"scripts": {
 		"compile": "cd scryer && wasm-pack build --target web -- --no-default-features",
 		"build": "node make.cjs && npx tsc",
-		"test": "node test.js"
+		"test": "npm run build && node test.js"
 	},
 	"main": "dist/scryer.js",
 	"types": "dist/index.d.ts",

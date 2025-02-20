@@ -18,13 +18,34 @@ test("query", async (t) => {
 	let i = 0;
 	for (const answer of query) {
 		const cmp = want[i++];
-		looseEqual(answer.bindings.X, cmp);
+		assert.deepEqual(answer.bindings.X, cmp);
 	}
-})
+});
 
-// TODO: use deepEqual once we got the term classes properly exported
-function looseEqual(got, want) {
-	for (const [k, v] of Object.entries(want)) {
-		assert.deepEqual(v, got[k]);
+test("consult module", async (t) => {
+	const pl = new Prolog();
+	pl.consultText(`
+		:- module(test_module, [working/1]).
+		working(yes).
+	`, "test_module");
+	// TODO: use_module/1 not importing things properly?
+	pl.consultText(`
+		:- use_module(test_module).
+		hello(world).
+		hello('Welt').
+		hello(世界).
+		hello(X) :- test_module:working(X).
+	`, "user");
+	const query = pl.query("hello(X).");
+	const want = [
+		{ type: 'atom', atom: 'world' },
+		{ type: 'atom', atom: 'Welt' },
+		{ type: 'atom', atom: '世界' },
+		{ type: 'atom', atom: 'yes' },
+	];
+	let i = 0;
+	for (const answer of query) {
+		const cmp = want[i++];
+		assert.deepEqual(answer.bindings.X, cmp);
 	}
-}
+});

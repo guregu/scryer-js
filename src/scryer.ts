@@ -1,6 +1,4 @@
-// export * from './pkg/scryer_prolog.js'
-
-import { default as initScryer, MachineBuilder } from './pkg/scryer_prolog.js';
+import { default as initScryer, MachineBuilder, QueryState } from './pkg/scryer_prolog.js';
 import scryer_wasm from './pkg/scryer_prolog_bg.wasm';
 
 const initOnce = async function init() {
@@ -16,10 +14,43 @@ export async function init() {
 export class Prolog {
 	#machine;
 	constructor() {
-		this.#machine = MachineBuilder.new().build();
+		this.#machine = new MachineBuilder().build();
 	}
-	query(goal: string): Iterable<LeafAnswer, void, void> {
-		return this.#machine.runQuery(goal);
+	/**
+	* Runs a query.
+	*
+	* You can only have one query at a time. If you try to do anything with this machine while
+	* doing a query an error will be thrown.
+	*/
+	query(goal: string): Query {
+		const iter = this.#machine.runQuery(goal);
+		return new Query(iter);
+	}
+	/**
+	* Consults a module.
+	*/
+	consultText(program: string, module = "user") {
+		this.#machine.consultModuleString(module, program);
+	}
+}
+
+/** Running query. */
+export class Query {
+	#iter;
+	constructor(iter: QueryState) {
+		this.#iter = iter;
+	}
+	[Symbol.iterator]() {
+		return this.#iter;
+	}
+	/**
+	* Drops the query.
+	*
+	* This is useful to end a query early. Like finishing a query, control will be given back
+	* to the `Machine` and any call to `next` after that will result in an error.
+	*/
+	drop() {
+		return this.#iter.drop();
 	}
 }
 
@@ -27,12 +58,13 @@ type Term = PrologInteger | PrologRational | PrologFloat | PrologAtom | PrologSt
 type Bindings = Record<string, Term>;
 
 export interface LeafAnswer {
+	type: "leafAnswer";
 	bindings: Bindings;
 }
 
 export interface PrologInteger {
 	type: "integer";
-	integer: number;
+	integer: bigint;
 }
 
 export interface PrologRational {
@@ -73,5 +105,6 @@ export interface PrologVariable {
 }
 
 export interface PrologException {
-	exception: Term; // TODO: what type is this?
+	type: "exception";
+	exception: Term;
 }
