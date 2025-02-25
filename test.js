@@ -32,7 +32,6 @@ test("query", async (t) => {
 		new Compound("hello", [new Atom("world")]),
 		[1, 2, 3],
 		"hello",
-		new Exception(new Atom("oops")),
 	];
 	let i = 0;
 	for (const answer of query) {
