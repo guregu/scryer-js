@@ -1,5 +1,6 @@
 import { default as initScryer, MachineBuilder, QueryState } from './pkg/scryer_prolog.js';
 import scryer_wasm from './pkg/scryer_prolog_bg.wasm';
+import { Args, Atom, Compound, Exception, Rational, Term, Variable } from './term.js';
 
 const initOnce = async function init() {
 	const module = await WebAssembly.compile(scryer_wasm as unknown as Uint8Array);
@@ -35,13 +36,34 @@ export class Prolog {
 }
 
 /** Running query. */
-export class Query {
+export class Query implements Iterable<Answer, void, void> {
 	#iter;
 	constructor(iter: QueryState) {
 		this.#iter = iter;
 	}
 	[Symbol.iterator]() {
-		return this.#iter;
+		return this;
+	}
+	next(): IteratorResult<Answer, void> {
+		const got = this.#iter.next() as IteratorResult<ScryerAnswer, void>;
+		if (got.done) {
+			return { done: got.done, value: undefined };
+		}
+
+		if (got.value.type === "exception") {
+			throw new Exception(convert(got.value.exception));
+		}
+
+		// transform from internal format to public one
+		const entries = Object.entries(got.value.bindings).map(([k, v]) =>
+			[k, convert(v)]
+		);
+		return {
+			value: {
+				bindings: Object.fromEntries(entries),
+			},
+			done: false,
+		}
 	}
 	/**
 	* Drops the query.
@@ -54,57 +76,103 @@ export class Query {
 	}
 }
 
-type Term = PrologInteger | PrologRational | PrologFloat | PrologAtom | PrologString | PrologList | PrologCompound | PrologVariable;
-type Bindings = Record<string, Term>;
+/** Leaf answer to a Prolog query. */
+export interface Answer {
+	/** Variable bindings. */
+	bindings: Record<string, Term>;
+};
 
-export interface LeafAnswer {
+type ScryerTerm = ScryerInteger | ScryerRational | ScryerFloat | ScryerAtom | ScryerString | ScryerList | ScryerCompound | ScryerVariable | ScryerException;
+type ScryerBindings = Record<string, ScryerTerm>;
+
+type ScryerAnswer = {
 	type: "leafAnswer";
-	bindings: Bindings;
-}
+	bindings: ScryerBindings;
+} | ScryerException;
 
-export interface PrologInteger {
+interface ScryerInteger {
 	type: "integer";
 	integer: bigint;
 }
 
-export interface PrologRational {
+interface ScryerRational {
 	type: "rational";
 	numerator: bigint;
 	denominator: bigint;
 }
 
-export interface PrologFloat {
+interface ScryerFloat {
 	type: "float";
 	float: number;
 }
 
-export interface PrologAtom {
+interface ScryerAtom {
 	type: "atom";
 	atom: string;
 }
 
-export interface PrologString {
+interface ScryerString {
 	type: "string";
 	string: string;
 }
 
-export interface PrologList {
+interface ScryerList {
 	type: "list";
-	list: Term[];
+	list: ScryerTerm[];
 }
 
-export interface PrologCompound {
+interface ScryerCompound {
 	type: "compound";
 	functor: string;
-	args: Term[];
+	args: ScryerTerm[];
 }
 
-export interface PrologVariable {
+interface ScryerVariable {
 	type: "variable";
 	variable: string;
 }
 
-export interface PrologException {
+interface ScryerException {
 	type: "exception";
-	exception: Term;
+	exception: ScryerTerm;
 }
+
+function convert(term: unknown): Term {
+	if (!isScryerTerm(term)) {
+		throw new Error(`not a term: ${term}`);
+	}
+	switch (term.type) {
+		case "integer":
+			return int(term.integer);
+		case "rational":
+			return new Rational(int(term.numerator), int(term.denominator));
+		case "float":
+			return term.float;
+		case "atom":
+			return new Atom(term.atom);
+		case "string":
+			return term.string;
+		case "list":
+			return term.list.map(convert);
+		case "compound":
+			const args = term.args.map(convert) as Args;
+			return new Compound(term.functor, args);
+		case "variable":
+			return new Variable(term.variable);
+		case "exception":
+			return new Exception(convert(term.exception));
+	}
+}
+
+function isScryerTerm(v: unknown): v is ScryerTerm {
+	return v !== null && typeof v === "object" && "type" in v && typeof v.type === "string";
+}
+
+function int(x: bigint): number | bigint {
+	if (x > Number.MAX_SAFE_INTEGER || x < Number.MIN_SAFE_INTEGER) {
+		return x;
+	}
+	return Number(x);
+}
+
+export * from './term.js';

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert";
 
-import { init, Prolog } from "./dist/scryer.js";
+import { init, Prolog, Atom, Rational, Compound, Exception } from "./dist/scryer.js";
 
 await test("load", async (t) => {
 	await init();
@@ -9,16 +9,54 @@ await test("load", async (t) => {
 
 test("query", async (t) => {
 	const pl = new Prolog();
-	const query = pl.query("X = 1 ; X = 2 ; X = hello.");
+	const query = pl.query(`
+		  X = 1
+		; X = 9007199254740991  % max safe integer
+		; X = 9007199254740992
+		; X = -9007199254740991 % min safe integer
+		; X = -9007199254740992
+		; X is 1 rdiv 3
+		; X = hello
+		; X = hello(world)
+		; X = [1, 2, 3]
+		; X = "hello".
+	`);
 	const want = [
-		{ type: 'integer', integer: 1n },
-		{ type: 'integer', integer: 2n },
-		{ type: 'atom', atom: 'hello' },
+		1,
+		9007199254740991,
+		9007199254740992n,
+		-9007199254740991,
+		-9007199254740992n,
+		new Rational(1, 3),
+		new Atom("hello"),
+		new Compound("hello", [new Atom("world")]),
+		[1, 2, 3],
+		"hello",
+		new Exception(new Atom("oops")),
 	];
 	let i = 0;
 	for (const answer of query) {
 		const cmp = want[i++];
 		assert.deepEqual(answer.bindings.X, cmp);
+	}
+});
+
+
+test("throw/1", async (t) => {
+	const pl = new Prolog();
+	let threw;
+	try {
+		const query = pl.query("throw(hi).");
+		query.next();
+	} catch (ex) {
+		threw = ex;
+	} finally {
+		if (!threw) {
+			assert.fail("didn't throw");
+		}
+		if (!(threw instanceof Exception)) {
+			assert.fail(`bad exception: ${ex}`);
+		}
 	}
 });
 
@@ -38,14 +76,19 @@ test("consult module", async (t) => {
 	`, "user");
 	const query = pl.query("hello(X).");
 	const want = [
-		{ type: 'atom', atom: 'world' },
-		{ type: 'atom', atom: 'Welt' },
-		{ type: 'atom', atom: '世界' },
-		{ type: 'atom', atom: 'yes' },
+		new Atom("world"),
+		new Atom("Welt"),
+		new Atom("世界"),
+		new Atom("yes"),
 	];
 	let i = 0;
-	for (const answer of query) {
-		const cmp = want[i++];
-		assert.deepEqual(answer.bindings.X, cmp);
+	try {
+		for (const answer of query) {
+			const cmp = want[i++];
+			assert.deepEqual(answer.bindings.X, cmp);
+		}
+	} catch (ex) {
+		console.log(ex.cause);
+		throw ex;
 	}
 });
