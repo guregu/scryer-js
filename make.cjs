@@ -11,13 +11,7 @@ const fs = require('fs');
 		target: ['es2022'],
 		minify: false,
 		keepNames: true,
-		sourcemap: false,
+		sourcemap: true,
 		plugins: []
 	});
-
-	// const src = fs.readFileSync("src/pkg/scryer_prolog.d.ts").toString();
-	// const ours = fs.readFileSync("dist/index.d.ts").toString();
-	// const fixed = ours.replace("export * from './pkg/scryer_prolog.js';", src + "\n");
-	// fs.writeFileSync("dist/index.d.ts", fixed);
-	// console.log(fixed);
 })();

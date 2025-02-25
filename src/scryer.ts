@@ -46,8 +46,9 @@ export class Prolog {
 
 /** Running query. */
 export class Query implements Iterable<Answer, void, void> {
-	#iter;
-	constructor(iter: QueryState) {
+	#iter: QueryState;
+	constructor(iter: any) {
+		// ^ want to avoid exporting QueryState
 		this.#iter = iter;
 	}
 	[Symbol.iterator]() {

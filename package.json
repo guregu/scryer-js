@@ -1,6 +1,6 @@
 {
 	"name": "scryer",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"type": "module",
 	"collaborators": [
 		"Mark Thom <markjordanthom@gmail.com>",
@@ -13,8 +13,9 @@
 		"url": "https://github.com/guregu/scryer-js"
 	},
 	"files": [
-		"dist/scryer.js",
-		"dist/index.d.ts"
+		"dist",
+		"LICENSE",
+		"README.md"
 	],
 	"scripts": {
 		"compile": "cd scryer && wasm-pack build --target web -- --no-default-features",
