@@ -21,3 +21,12 @@ for (const answer of query) {
 	console.log(answer.bindings);
 }
 ```
+
+For browsers, you can use [esm.sh](https://esm.sh) or other CDNs to import it directly:
+```html
+<script type="module">
+import { init, Prolog } from "https://esm.sh/scryer"; // ideally add version info to the URL, e.g. scryer@0.0.3
+await init();
+// query stuff
+</script>
+```
