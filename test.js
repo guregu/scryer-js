@@ -41,6 +41,18 @@ test("query", async (t) => {
 	}
 });
 
+test("query var binding", async (t) => {
+	const pl = new Prolog();
+	const query = pl.query(`X = hello(Planet).`, { bindings: { Planet: new Atom("world") } });
+	const want = [
+		new Compound("hello", [new Atom("world")])
+	];
+	let i = 0;
+	for (const answer of query) {
+		const cmp = want[i++];
+		assert.deepEqual(answer.bindings.X, cmp);
+	}
+});
 
 test("throw/1", async (t) => {
 	const pl = new Prolog();

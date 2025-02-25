@@ -1,6 +1,7 @@
 import { default as initScryer, MachineBuilder, QueryState } from './pkg/scryer_prolog.js';
 import scryer_wasm from './pkg/scryer_prolog_bg.wasm';
-import { Args, Atom, Compound, Exception, Rational, Term, Variable } from './term.js';
+import { Args, Atom, Compound, Exception, Rational, Term, toProlog, Variable } from './term.js';
+export * from './term.js';
 
 const initOnce = async function init() {
 	const module = await WebAssembly.compile(scryer_wasm as unknown as Uint8Array);
@@ -9,6 +10,11 @@ const initOnce = async function init() {
 
 export async function init() {
 	await initOnce;
+}
+
+export type QueryOptions = {
+	/** Optional variable bindings to prepend to a query. */
+	bindings?: Bindings,
 }
 
 /** Prolog interpreter. */
@@ -23,7 +29,10 @@ export class Prolog {
 	* You can only have one query at a time. If you try to do anything with this machine while
 	* doing a query an error will be thrown.
 	*/
-	query(goal: string): Query {
+	query(goal: string, options: QueryOptions = {}): Query {
+		if (options.bindings) {
+			goal = bindVars(goal, options.bindings);
+		}
 		const iter = this.#machine.runQuery(goal);
 		return new Query(iter);
 	}
@@ -81,6 +90,9 @@ export interface Answer {
 	/** Variable bindings. */
 	bindings: Record<string, Term>;
 };
+
+/** Variable bindings. */
+export type Bindings = Record<string, Term>;
 
 type ScryerTerm = ScryerInteger | ScryerRational | ScryerFloat | ScryerAtom | ScryerString | ScryerList | ScryerCompound | ScryerVariable | ScryerException;
 type ScryerBindings = Record<string, ScryerTerm>;
@@ -175,4 +187,8 @@ function int(x: bigint): number | bigint {
 	return Number(x);
 }
 
-export * from './term.js';
+function bindVars(query: string, bind: Bindings) {
+	const vars = Object.entries(bind).map(([k, v]) => `${k} = ${toProlog(v)}`).join(", ");
+	if (vars.length === 0) return query;
+	return `${vars}, ${query}`;
+}
