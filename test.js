@@ -42,7 +42,7 @@ test("query", async (t) => {
 
 test("query var binding", async (t) => {
 	const pl = new Prolog();
-	const query = pl.query(`X = hello(Planet).`, { bindings: { Planet: new Atom("world") } });
+	const query = pl.query(`X = hello(Planet).`, { bind: { Planet: new Atom("world") } });
 	const want = [
 		new Compound("hello", [new Atom("world")])
 	];

@@ -2,9 +2,7 @@
 
 This is a Typescript package that embeds [Scryer Prolog](https://github.com/mthom/scryer-prolog).
 
-Currently on @bakaq's [PR branch](https://github.com/bakaq/scryer-prolog/tree/wasm_rework).
-
-Experimental, API will change.
+Experimental, API will change. Currently it's (roughly) based on [trealla-js](https://github.com/guregu/trealla-js)'s API.
 
 ```
 npm install scryer
