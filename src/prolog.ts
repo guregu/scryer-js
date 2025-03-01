@@ -46,6 +46,7 @@ export class Prolog {
 /** Running query. */
 export class Query implements Iterable<Answer, void, void> {
 	#iter: QueryState;
+	#done = false;
 	constructor(iter: any /* QueryState */) {
 		// ^ want to avoid exporting QueryState
 		this.#iter = iter;
@@ -54,7 +55,12 @@ export class Query implements Iterable<Answer, void, void> {
 		return this;
 	}
 	next(): IteratorResult<Answer, void> {
+		if (this.#done) {
+			return { done: true, value: undefined };
+		}
+
 		const got = this.#iter.next() as IteratorResult<ScryerAnswer, void>;
+		this.#done = got.done ?? false;
 		if (got.done) {
 			return { done: got.done, value: undefined };
 		}
@@ -78,10 +84,17 @@ export class Query implements Iterable<Answer, void, void> {
 	* Drops the query.
 	*
 	* This is useful to end a query early. Like finishing a query, control will be given back
-	* to the `Machine` and any call to `next` after that will result in an error.
+	* to the `Machine`.
 	*/
-	drop() {
-		return this.#iter.drop();
+	return(): IteratorReturnResult<void> {
+		if (!this.#done) {
+			this.#iter.drop();
+			this.#done = true;
+		}
+		return {
+			done: true,
+			value: undefined,
+		}
 	}
 }
 

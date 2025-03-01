@@ -53,6 +53,30 @@ test("query var binding", async (t) => {
 	}
 });
 
+test("query drop early", async (t) => {
+	const pl = new Prolog();
+	const query = pl.query(`repeat, X = 1.`);
+	const want = [
+		1,
+		1,
+		1,
+	];
+	let i = 0;
+	for (const answer of query) {
+		const cmp = want[i++];
+		assert.deepEqual(answer.bindings.X, cmp);
+
+		if (i === 3) break;
+	}
+	const extra = query.next();
+	assert.deepEqual(extra, { done: true, value: undefined });
+
+	t.test("control returns to machine", (t) => {
+		const second = pl.query(`X = ok.`).next();
+		assert.deepEqual(second, { done: false, value: { bindings: { X: new Atom("ok") } } });
+	});
+});
+
 test("throw/1", async (t) => {
 	const pl = new Prolog();
 	let threw;
