@@ -1,5 +1,5 @@
 import test from "node:test";
-import assert from "node:assert";
+import assert, { deepEqual } from "node:assert";
 
 import {
 	init,
@@ -58,6 +58,28 @@ test("query", async (t) => {
 	}
 });
 
+test("query failure", async (t) => {
+	const pl = new Prolog();
+	let iter = 0;
+	for (const _ of pl.query("false.")) {
+		iter++;
+	}
+	assert.deepEqual(iter, 0);
+
+	await t.test("queryOnce", (t) => {
+		const once = pl.queryOnce("false.");
+		assert.deepEqual(once, false);
+	});
+});
+
+test("queryOnce returns control", async (t) => {
+	const pl = new Prolog();
+	for (let i = 0; i < 10; i++) {
+		const answer = pl.queryOnce("repeat, X = 1.");
+		assert.deepEqual(answer.bindings.X, 1);
+	}
+});
+
 test("query var binding", async (t) => {
 	const pl = new Prolog();
 	const query = pl.query(`X = hello(Planet).`, {
@@ -110,6 +132,8 @@ test("throw/1", async (t) => {
 			assert.fail(`bad exception: ${ex}`);
 		}
 		assert.deepEqual(threw.term, new Atom("hi"));
+		assert.ok(isException(threw));
+		assert.deepEqual(threw.toProlog(), "throw('hi')");
 	}
 });
 
@@ -160,31 +184,36 @@ test("terms", async (t) => {
 			text: "X",
 			check: isVariable,
 		},
-		{
-			term: new Exception(123),
-			text: "throw(123)",
-			check: isException,
-		},
 	];
-	await test(`term to prolog text`, async (t) => {
-		for (const x of cases) {
-			await test(`toProlog(${x.term})`, (t) => {
-				assert.deepEqual(toProlog(x.term), x.text);
+	await t.test(`term to prolog text`, async (t) => {
+		for (const item of cases) {
+			await t.test(`toProlog(${item.term})`, (t) => {
+				assert.deepEqual(toProlog(item.term), item.text);
 			});
 		}
 	});
-	await test(`term type checkers`, async (t) => {
+	await t.test(`term type checkers`, async (t) => {
 		for (const item of cases) {
-			await test(`${item.check.name}(${item.term})`, (t) => {
+			await t.test(`${item.check.name}(${item.term})`, (t) => {
 				assert.ok(item.check(item.term));
 			});
-
-			// for now, leaving Exception out of the Term enum
-			// because it can only ever be thrown, not show up as a var binding
-			if (item.term instanceof Exception) continue;
-
-			await test(`isTerm(${item.term})`, (t) => {
+			await t.test(`isTerm(${item.term})`, (t) => {
 				assert.ok(isTerm(item.term));
+			});
+		}
+	});
+	// make sure we get the same term type back that we bind with QueryOptions
+	await t.test(`binding roundtrip`, async (t) => {
+		const pl = new Prolog();
+		for (const item of cases) {
+			await test(`X = ${toProlog(item.term)}`, (t) => {
+				if (isVariable(item.term)) {
+					t.skip("equivalent variables don't get individual bindings (yet?)");
+					return;
+				}
+				const ans = pl.queryOnce("X = Y.", { bind: { Y: item.term } });
+				console.log(ans);
+				assert.deepEqual(ans.bindings.X, item.term);
 			});
 		}
 	});

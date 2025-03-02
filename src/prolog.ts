@@ -9,8 +9,10 @@ import {
 	Atom,
 	Compound,
 	Exception,
+	isRational,
 	Rational,
 	Term,
+	Termlike,
 	toProlog,
 	Variable,
 } from "./term.js";
@@ -28,7 +30,7 @@ export async function init() {
 
 export type QueryOptions = {
 	/** Optional variable bindings to prepend to a query. */
-	bind?: Bindings;
+	bind?: Record<string, Termlike>;
 };
 
 /** Prolog interpreter. */
@@ -49,6 +51,18 @@ export class Prolog {
 		}
 		const iter = this.#machine.runQuery(goal);
 		return new Query(iter);
+	}
+	/** Runs a query, returning at most one answer and discarding any others. */
+	queryOnce(goal: string, options: QueryOptions = {}): Answer | false {
+		let query;
+		try {
+			query = this.query(goal, options);
+			const answer = query.next();
+			if (answer.done) return false;
+			return answer.value;
+		} finally {
+			query?.return();
+		}
 	}
 	/**
 	 * Consults a module.
@@ -74,16 +88,27 @@ export class Query implements Iterable<Answer, void, void> {
 			return { done: true, value: undefined };
 		}
 
-		const got = this.#iter.next() as IteratorResult<ScryerAnswer, void>;
+		const got = this.#iter.next() as IteratorResult<ScryerResult, void>;
 		this.#done = got.done ?? false;
 		if (got.done) {
 			return { done: got.done, value: undefined };
 		}
 
+		// query failed
+		if (got.value === false) {
+			this.#done = true;
+			// TODO: not 100% sure why this drop is necessary, looks like QueryState needs to iterate once past a failure
+			// otherwise the Machine holds on to it
+			this.#iter.drop();
+			return { done: true, value: undefined };
+		}
+
+		// query threw
 		if (got.value.type === "exception") {
 			throw new Exception(convert(got.value.exception));
 		}
 
+		// query success
 		// transform from internal format to public one
 		const entries = Object.entries(got.value.bindings).map(([k, v]) => [
 			k,
@@ -135,12 +160,15 @@ type ScryerTerm =
 	| ScryerException;
 type ScryerBindings = Record<string, ScryerTerm>;
 
-type ScryerAnswer =
-	| {
-			type: "leafAnswer";
-			bindings: ScryerBindings;
-	  }
-	| ScryerException;
+type ScryerResult =
+	| ScryerAnswer // query succeeded
+	| false // query failed
+	| ScryerException; // query threw
+
+interface ScryerAnswer {
+	type: "leafAnswer";
+	bindings: ScryerBindings;
+}
 
 interface ScryerInteger {
 	type: "integer";
@@ -232,9 +260,9 @@ function int(x: bigint): number | bigint {
 	return Number(x);
 }
 
-function bindVars(query: string, bind: Bindings) {
+function bindVars(query: string, bind: Record<string, Termlike>) {
 	const vars = Object.entries(bind)
-		.map(([k, v]) => `${k} = ${toProlog(v)}`)
+		.map(([k, v]) => `${k} ${isRational(v) ? "is" : "="} ${toProlog(v)}`)
 		.join(", ");
 	if (vars.length === 0) return query;
 	return `${vars}, ${query}`;
