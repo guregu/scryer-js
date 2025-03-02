@@ -1,0 +1,7 @@
+# Apart from ignoring what is declared in .gitignore
+# formatter should not format any of the following paths.
+# See for more info: https://prettier.io/docs/ignore#ignoring-files-prettierignore
+
+scryer
+src/pkg
+package-lock.json

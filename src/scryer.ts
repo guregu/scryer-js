@@ -1,2 +1,2 @@
-export * from './prolog';
-export * from './term';
+export * from "./prolog";
+export * from "./term";
