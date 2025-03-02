@@ -148,20 +148,24 @@ export function isCompound<F extends string>(
 	);
 }
 
+export function isCallable(term: unknown): term is Goal {
+	return isAtom(term) || isCompound(term);
+}
+
 export function isList(x: unknown): x is List {
 	return Array.isArray(x) && x.every(isTerm);
 }
 
-export function isNumber(x: Term): x is number {
-	return typeof x === "number";
+export function isNumber(x: unknown): x is Numeric {
+	return typeof x === "number" || typeof x === "bigint";
 }
 
-export function isString(x: Term): x is string {
+export function isString(x: unknown): x is string {
 	return typeof x === "string";
 }
 
-export function isCallable(term: Term): term is Goal {
-	return isAtom(term) || isCompound(term);
+export function isRational(x: unknown): x is Rational {
+	return x instanceof Rational;
 }
 
 export function isVariable(term: unknown): term is Variable {
@@ -175,7 +179,13 @@ export function isTerm(term: unknown): term is Term {
 		case "string":
 			return true;
 	}
-	return isAtom(term) || isCompound(term) || isList(term) || isVariable(term);
+	return (
+		isAtom(term) ||
+		isCompound(term) ||
+		isList(term) ||
+		isVariable(term) ||
+		isRational(term)
+	);
 }
 
 // TODO: this doesn't check for symbols, spaces, etc.
