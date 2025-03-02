@@ -1,11 +1,26 @@
-import { default as initScryer, MachineBuilder, QueryState } from './pkg/scryer_prolog.js';
-import scryer_wasm from './pkg/scryer_prolog_bg.wasm';
-import { Args, Atom, Compound, Exception, Rational, Term, toProlog, Variable } from './term.js';
+import {
+	default as initScryer,
+	MachineBuilder,
+	QueryState,
+} from "./pkg/scryer_prolog.js";
+import scryer_wasm from "./pkg/scryer_prolog_bg.wasm";
+import {
+	Args,
+	Atom,
+	Compound,
+	Exception,
+	Rational,
+	Term,
+	toProlog,
+	Variable,
+} from "./term.js";
 
-const initOnce = async function init() {
-	const module = await WebAssembly.compile(scryer_wasm as unknown as Uint8Array);
+const initOnce = (async function init() {
+	const module = await WebAssembly.compile(
+		scryer_wasm as unknown as Uint8Array,
+	);
 	await initScryer(module);
-}();
+})();
 
 export async function init() {
 	await initOnce;
@@ -13,8 +28,8 @@ export async function init() {
 
 export type QueryOptions = {
 	/** Optional variable bindings to prepend to a query. */
-	bind?: Bindings,
-}
+	bind?: Bindings;
+};
 
 /** Prolog interpreter. */
 export class Prolog {
@@ -23,11 +38,11 @@ export class Prolog {
 		this.#machine = new MachineBuilder().build();
 	}
 	/**
-	* Runs a query.
-	*
-	* You can only have one query at a time. If you try to do anything with this machine while
-	* doing a query an error will be thrown.
-	*/
+	 * Runs a query.
+	 *
+	 * You can only have one query at a time. If you try to do anything with this machine while
+	 * doing a query an error will be thrown.
+	 */
 	query(goal: string, options: QueryOptions = {}): Query {
 		if (options.bind) {
 			goal = bindVars(goal, options.bind);
@@ -36,8 +51,8 @@ export class Prolog {
 		return new Query(iter);
 	}
 	/**
-	* Consults a module.
-	*/
+	 * Consults a module.
+	 */
 	consultText(program: string, module = "user") {
 		this.#machine.consultModuleString(module, program);
 	}
@@ -70,22 +85,23 @@ export class Query implements Iterable<Answer, void, void> {
 		}
 
 		// transform from internal format to public one
-		const entries = Object.entries(got.value.bindings).map(([k, v]) =>
-			[k, convert(v)]
-		);
+		const entries = Object.entries(got.value.bindings).map(([k, v]) => [
+			k,
+			convert(v),
+		]);
 		return {
 			value: {
 				bindings: Object.fromEntries(entries),
 			},
 			done: false,
-		}
+		};
 	}
 	/**
-	* Drops the query.
-	*
-	* This is useful to end a query early. Like finishing a query, control will be given back
-	* to the `Machine`.
-	*/
+	 * Drops the query.
+	 *
+	 * This is useful to end a query early. Like finishing a query, control will be given back
+	 * to the `Machine`.
+	 */
 	return(): IteratorReturnResult<void> {
 		if (!this.#done) {
 			this.#iter.drop();
@@ -94,7 +110,7 @@ export class Query implements Iterable<Answer, void, void> {
 		return {
 			done: true,
 			value: undefined,
-		}
+		};
 	}
 }
 
@@ -102,18 +118,29 @@ export class Query implements Iterable<Answer, void, void> {
 export interface Answer {
 	/** Variable bindings. */
 	bindings: Record<string, Term>;
-};
+}
 
 /** Variable bindings. */
 export type Bindings = Record<string, Term>;
 
-type ScryerTerm = ScryerInteger | ScryerRational | ScryerFloat | ScryerAtom | ScryerString | ScryerList | ScryerCompound | ScryerVariable | ScryerException;
+type ScryerTerm =
+	| ScryerInteger
+	| ScryerRational
+	| ScryerFloat
+	| ScryerAtom
+	| ScryerString
+	| ScryerList
+	| ScryerCompound
+	| ScryerVariable
+	| ScryerException;
 type ScryerBindings = Record<string, ScryerTerm>;
 
-type ScryerAnswer = {
-	type: "leafAnswer";
-	bindings: ScryerBindings;
-} | ScryerException;
+type ScryerAnswer =
+	| {
+			type: "leafAnswer";
+			bindings: ScryerBindings;
+	  }
+	| ScryerException;
 
 interface ScryerInteger {
 	type: "integer";
@@ -190,7 +217,12 @@ function convert(term: ScryerTerm): Term {
 }
 
 function isScryerTerm(v: unknown): v is ScryerTerm {
-	return v !== null && typeof v === "object" && "type" in v && typeof v.type === "string";
+	return (
+		v !== null &&
+		typeof v === "object" &&
+		"type" in v &&
+		typeof v.type === "string"
+	);
 }
 
 function int(x: bigint): number | bigint {
@@ -201,7 +233,9 @@ function int(x: bigint): number | bigint {
 }
 
 function bindVars(query: string, bind: Bindings) {
-	const vars = Object.entries(bind).map(([k, v]) => `${k} = ${toProlog(v)}`).join(", ");
+	const vars = Object.entries(bind)
+		.map(([k, v]) => `${k} = ${toProlog(v)}`)
+		.join(", ");
 	if (vars.length === 0) return query;
 	return `${vars}, ${query}`;
 }

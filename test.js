@@ -1,7 +1,14 @@
 import test from "node:test";
 import assert from "node:assert";
 
-import { init, Prolog, Atom, Rational, Compound, Exception } from "./dist/scryer.js";
+import {
+	init,
+	Prolog,
+	Atom,
+	Rational,
+	Compound,
+	Exception,
+} from "./dist/scryer.js";
 
 await test("load", async (t) => {
 	await init();
@@ -42,10 +49,10 @@ test("query", async (t) => {
 
 test("query var binding", async (t) => {
 	const pl = new Prolog();
-	const query = pl.query(`X = hello(Planet).`, { bind: { Planet: new Atom("world") } });
-	const want = [
-		new Compound("hello", [new Atom("world")])
-	];
+	const query = pl.query(`X = hello(Planet).`, {
+		bind: { Planet: new Atom("world") },
+	});
+	const want = [new Compound("hello", [new Atom("world")])];
 	let i = 0;
 	for (const answer of query) {
 		const cmp = want[i++];
@@ -56,11 +63,7 @@ test("query var binding", async (t) => {
 test("query drop early", async (t) => {
 	const pl = new Prolog();
 	const query = pl.query(`repeat, X = 1.`);
-	const want = [
-		1,
-		1,
-		1,
-	];
+	const want = [1, 1, 1];
 	let i = 0;
 	for (const answer of query) {
 		const cmp = want[i++];
@@ -73,7 +76,10 @@ test("query drop early", async (t) => {
 
 	t.test("control returns to machine", (t) => {
 		const second = pl.query(`X = ok.`).next();
-		assert.deepEqual(second, { done: false, value: { bindings: { X: new Atom("ok") } } });
+		assert.deepEqual(second, {
+			done: false,
+			value: { bindings: { X: new Atom("ok") } },
+		});
 	});
 });
 
@@ -97,18 +103,24 @@ test("throw/1", async (t) => {
 
 test("consult module", async (t) => {
 	const pl = new Prolog();
-	pl.consultText(`
+	pl.consultText(
+		`
 		:- module(test_module, [working/1]).
 		working(yes).
-	`, "test_module");
+	`,
+		"test_module",
+	);
 	// TODO: use_module/1 not importing things properly?
-	pl.consultText(`
+	pl.consultText(
+		`
 		:- use_module(test_module).
 		hello(world).
 		hello('Welt').
 		hello(世界).
 		hello(X) :- test_module:working(X).
-	`, "user");
+	`,
+		"user",
+	);
 	const query = pl.query("hello(X).");
 	const want = [
 		new Atom("world"),

@@ -19,11 +19,18 @@
 	],
 	"scripts": {
 		"compile": "cd scryer && wasm-pack build --target web -- --no-default-features",
-		"build": "node make.cjs && npx tsc",
-		"test": "npm run build && node test.js"
+		"build": "node make.js && tsc",
+		"test": "npm run build && node test.js",
+		"format": "prettier --write ."
 	},
 	"main": "dist/scryer.js",
 	"types": "dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/scryer.js"
+		}
+	},
 	"keywords": [
 		"prolog",
 		"prolog-interpreter",
@@ -31,6 +38,7 @@
 	],
 	"devDependencies": {
 		"esbuild": "^0.25.0",
-		"typescript": "^5.7.3"
+		"prettier": "^3.5.2",
+		"typescript": "^5.8.2"
 	}
 }

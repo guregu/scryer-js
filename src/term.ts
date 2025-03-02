@@ -1,5 +1,13 @@
 /** Prolog term. */
-export type Term = Atom | Compound<Functor, Args> | Variable | List | string | Numeric | Rational | Exception;
+export type Term =
+	| Atom
+	| Compound<Functor, Args>
+	| Variable
+	| List
+	| string
+	| Numeric
+	| Rational
+	| Exception;
 /** Float if within the safe integer range, otherwise a bigint. */
 export type Numeric = number | bigint;
 /** Prolog list term. */
@@ -16,11 +24,15 @@ export class Atom {
 	constructor(functor: string) {
 		this.functor = functor;
 	}
-	get pi() { return piTerm(this.functor, 0) }
+	get pi() {
+		return piTerm(this.functor, 0);
+	}
 	toProlog() {
 		return escapeAtom(this.functor);
 	}
-	toString() { return this.toProlog(); }
+	toString() {
+		return this.toProlog();
+	}
 }
 
 /** Prolog compound term. */
@@ -33,23 +45,31 @@ export class Compound<Functor extends string, Arguments extends Args> {
 		if (typeof args?.length === "undefined")
 			throw new Error("bad compound, not a list: " + functor);
 	}
-	get pi() { return new Compound("/", [new Atom(this.functor), this.args.length]) }
+	get pi() {
+		return new Compound("/", [new Atom(this.functor), this.args.length]);
+	}
 	toProlog() {
-		if (this.args.length === 0)
-			return escapeAtom(this.functor);
+		if (this.args.length === 0) return escapeAtom(this.functor);
 
-		if (this.args.length === 2 && (this.functor === ":" || this.functor === "/"))
+		if (
+			this.args.length === 2 &&
+			(this.functor === ":" || this.functor === "/")
+		)
 			return `${toProlog(this.args[0])}${this.functor}${toProlog(this.args[1])}`;
 
-		return `${escapeAtom(this.functor)}(${this.args.map(toProlog).join(",")})`
+		return `${escapeAtom(this.functor)}(${this.args.map(toProlog).join(",")})`;
 	}
-	toString() { return this.toProlog(); }
+	toString() {
+		return this.toProlog();
+	}
 }
 
 /** Creates Atom if args is empty, or a Compound otherwise. */
-export function Atomic(functor: string, args: Term[]): typeof args extends Args ? Compound<typeof functor, typeof args> : Atom {
-	if (args.length === 0)
-		return new Atom(functor);
+export function Atomic(
+	functor: string,
+	args: Term[],
+): typeof args extends Args ? Compound<typeof functor, typeof args> : Atom {
+	if (args.length === 0) return new Atom(functor);
 	return new Compound(functor, args as Args);
 }
 
@@ -71,8 +91,7 @@ export class Variable {
 	var: string;
 	// attr?: Term[]; // TODO: not supported in Scryer yet
 	constructor(name: string, attr?: Term[]) {
-		if (!validVar(name))
-			throw new Error("invalid variable name: " + name);
+		if (!validVar(name)) throw new Error("invalid variable name: " + name);
 		this.var = name;
 		// if (attr && attr?.length > 0)
 		// 	this.attr = attr;
@@ -83,7 +102,9 @@ export class Variable {
 		// }
 		return `${this.var}`;
 	}
-	toString() { return this.toProlog(); }
+	toString() {
+		return this.toProlog();
+	}
 }
 
 /** Literal Prolog term that will be not be escaped or otherwise transformed. */
@@ -110,14 +131,21 @@ export class Exception {
 }
 
 export function isAtom(x: unknown, name?: string): x is Atom {
-	return x instanceof Atom &&
-		(typeof name === "undefined" || x.functor === name);
+	return (
+		x instanceof Atom && (typeof name === "undefined" || x.functor === name)
+	);
 }
 
-export function isCompound<F extends string>(x: unknown, name?: F, arity?: number): x is Compound<F, Args> {
-	return x instanceof Compound &&
+export function isCompound<F extends string>(
+	x: unknown,
+	name?: F,
+	arity?: number,
+): x is Compound<F, Args> {
+	return (
+		x instanceof Compound &&
 		(typeof name === "undefined" || x.functor === name) &&
-		(typeof arity === "undefined" || x.args.length === arity);
+		(typeof arity === "undefined" || x.args.length === arity)
+	);
 }
 
 export function isList(x: unknown): x is List {
@@ -152,12 +180,9 @@ export function isTerm(term: unknown): term is Term {
 
 // TODO: this doesn't check for symbols, spaces, etc.
 function validVar(name: unknown) {
-	if (typeof name !== "string" || name.length === 0)
-		return false;
-	if (name[0] === "_")
-		return true;
-	if (name[0].toLowerCase() !== name[0])
-		return true;
+	if (typeof name !== "string" || name.length === 0) return false;
+	if (name[0] === "_") return true;
+	if (name[0].toLowerCase() !== name[0]) return true;
 	return false;
 }
 
@@ -197,8 +222,7 @@ export function toProlog(obj: unknown): string {
 	if (obj instanceof Uint8Array)
 		return escapeString(new TextDecoder().decode(obj));
 
-	if (Array.isArray(obj))
-		return `[${obj.map(toProlog).join(",")}]`;
+	if (Array.isArray(obj)) return `[${obj.map(toProlog).join(",")}]`;
 
 	throw new Error("scryer: can't convert object to Prolog term: " + obj);
 }
@@ -210,8 +234,7 @@ export function escapeAtom(atom: string) {
 		.replaceAll("\\", "\\\\")
 		.replaceAll(`'`, `\\'`)
 		.replaceAll("\n", "\\n")
-		.replaceAll("\t", "\\t")
-		}'`;
+		.replaceAll("\t", "\\t")}'`;
 }
 
 export function escapeString(str: string) {
@@ -219,8 +242,7 @@ export function escapeString(str: string) {
 		.replaceAll("\\", "\\\\")
 		.replaceAll(`"`, `\\"`)
 		.replaceAll("\n", "\\n")
-		.replaceAll("\t", "\\t")
-		}"`;
+		.replaceAll("\t", "\\t")}"`;
 }
 
 /*
