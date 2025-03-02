@@ -98,6 +98,7 @@ test("throw/1", async (t) => {
 		if (!(threw instanceof Exception)) {
 			assert.fail(`bad exception: ${ex}`);
 		}
+		assert.deepEqual(threw.term, new Atom("hi"));
 	}
 });
 

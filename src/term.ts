@@ -128,7 +128,8 @@ export class Exception {
 		this.term = term;
 	}
 	toProlog() {
-		return toProlog(this.term);
+		// matches toplevel representation of thrown errors as throw/1 terms
+		return `throw(${toProlog(this.term)})`;
 	}
 }
 
