@@ -5,9 +5,20 @@ import {
 	init,
 	Prolog,
 	Atom,
-	Rational,
 	Compound,
+	Variable,
+	Rational,
 	Exception,
+	toProlog,
+	isTerm,
+	isNumber,
+	isString,
+	isAtom,
+	isCompound,
+	isList,
+	isVariable,
+	isRational,
+	isException,
 } from "./dist/scryer.js";
 
 await test("load", async (t) => {
@@ -100,6 +111,83 @@ test("throw/1", async (t) => {
 		}
 		assert.deepEqual(threw.term, new Atom("hi"));
 	}
+});
+
+test("terms", async (t) => {
+	const cases = [
+		{
+			term: 1,
+			text: "1",
+			check: isNumber,
+		},
+		{
+			term: 9007199254740992n,
+			text: "9007199254740992",
+			check: isNumber,
+		},
+		{
+			term: new Rational(1, 3),
+			text: "1 rdiv 3",
+			check: isRational,
+		},
+		{
+			term: new Atom("y'all"),
+			text: "'y\\'all'",
+			check: isAtom,
+		},
+		{
+			term: new Atom("OK"),
+			text: "'OK'",
+			check: isAtom,
+		},
+		{
+			term: new Compound("hello", [new Atom("world")]),
+			text: "'hello'('world')",
+			check: isCompound,
+		},
+		{
+			term: "hi",
+			text: `"hi"`,
+			check: isString,
+		},
+		{
+			term: [123, new Atom("abc")],
+			text: `[123,'abc']`,
+			check: isList,
+		},
+		{
+			term: new Variable("X"),
+			text: "X",
+			check: isVariable,
+		},
+		{
+			term: new Exception(123),
+			text: "throw(123)",
+			check: isException,
+		},
+	];
+	await test(`term to prolog text`, async (t) => {
+		for (const x of cases) {
+			await test(`toProlog(${x.term})`, (t) => {
+				assert.deepEqual(toProlog(x.term), x.text);
+			});
+		}
+	});
+	await test(`term type checkers`, async (t) => {
+		for (const item of cases) {
+			await test(`${item.check.name}(${item.term})`, (t) => {
+				assert.ok(item.check(item.term));
+			});
+
+			// for now, leaving Exception out of the Term enum
+			// because it can only ever be thrown, not show up as a var binding
+			if (item.term instanceof Exception) return;
+
+			await test(`isTerm(${item.term})`, (t) => {
+				assert.ok(isTerm(item.term));
+			});
+		}
+	});
 });
 
 test("consult module", async (t) => {

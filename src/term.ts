@@ -86,6 +86,9 @@ export class Rational {
 	toProlog() {
 		return `${this.numerator} rdiv ${this.denominator}`;
 	}
+	toString() {
+		return `${this.numerator}/${this.denominator}`;
+	}
 }
 
 /** Prolog variable term. */
@@ -131,6 +134,9 @@ export class Exception {
 		// matches toplevel representation of thrown errors as throw/1 terms
 		return `throw(${toProlog(this.term)})`;
 	}
+	toString() {
+		return this.toProlog();
+	}
 }
 
 export function isAtom(x: unknown, name?: string): x is Atom {
@@ -171,6 +177,10 @@ export function isRational(x: unknown): x is Rational {
 
 export function isVariable(term: unknown): term is Variable {
 	return term instanceof Variable;
+}
+
+export function isException(err: unknown): err is Exception {
+	return err instanceof Exception;
 }
 
 export function isTerm(term: unknown): term is Term {
