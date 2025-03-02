@@ -181,7 +181,7 @@ test("terms", async (t) => {
 
 			// for now, leaving Exception out of the Term enum
 			// because it can only ever be thrown, not show up as a var binding
-			if (item.term instanceof Exception) return;
+			if (item.term instanceof Exception) continue;
 
 			await test(`isTerm(${item.term})`, (t) => {
 				assert.ok(isTerm(item.term));
