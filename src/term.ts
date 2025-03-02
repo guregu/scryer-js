@@ -20,15 +20,15 @@ export type PredicateIndicator = Compound<"/", [Atom, number]>;
 
 /** Prolog atom term. */
 export class Atom {
-	functor: string;
+	value: string;
 	constructor(functor: string) {
-		this.functor = functor;
+		this.value = functor;
 	}
 	get pi() {
-		return piTerm(this.functor, 0);
+		return piTerm(this.value, 0);
 	}
 	toProlog() {
-		return escapeAtom(this.functor);
+		return escapeAtom(this.value);
 	}
 	toString() {
 		return this.toProlog();
@@ -65,10 +65,12 @@ export class Compound<Functor extends string, Arguments extends Args> {
 }
 
 /** Creates Atom if args is empty, or a Compound otherwise. */
+export function Atomic(value: string, args: []): Atom;
 export function Atomic(
 	functor: string,
-	args: Term[],
-): typeof args extends Args ? Compound<typeof functor, typeof args> : Atom {
+	args: Args,
+): Compound<typeof functor, typeof args>;
+export function Atomic(functor: string, args: Args | []) {
 	if (args.length === 0) return new Atom(functor);
 	return new Compound(functor, args as Args);
 }
@@ -131,9 +133,7 @@ export class Exception {
 }
 
 export function isAtom(x: unknown, name?: string): x is Atom {
-	return (
-		x instanceof Atom && (typeof name === "undefined" || x.functor === name)
-	);
+	return x instanceof Atom && (typeof name === "undefined" || x.value === name);
 }
 
 export function isCompound<F extends string>(
