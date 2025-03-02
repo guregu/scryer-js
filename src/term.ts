@@ -68,10 +68,10 @@ export class Compound<Functor extends string, Arguments extends Args> {
 export function Atomic(value: string, args: []): Atom;
 export function Atomic(
 	functor: string,
-	args: Args,
-): Compound<typeof functor, typeof args>;
-export function Atomic(functor: string, args: Args | []) {
-	if (args.length === 0) return new Atom(functor);
+	args: Term[],
+): typeof args extends Args ? Compound<typeof functor, typeof args> : Atom;
+export function Atomic(functor: string, args: Term[]) {
+	if (!args || args.length === 0) return new Atom(functor);
 	return new Compound(functor, args as Args);
 }
 
