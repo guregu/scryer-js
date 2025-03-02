@@ -16,7 +16,7 @@ await init();
 const pl = new Prolog();
 const query = pl.query("X = 1 ; X = 2.");
 for (const answer of query) {
-  console.log(answer.bindings);
+	console.log(answer.bindings);
 }
 ```
 
@@ -24,8 +24,8 @@ For browsers, you can use [esm.sh](https://esm.sh) or other CDNs to import it di
 
 ```html
 <script type="module">
-  import { init, Prolog } from "https://esm.sh/scryer"; // ideally add version info to the URL, e.g. scryer@0.1.0
-  await init();
-  // query stuff
+	import { init, Prolog } from "https://esm.sh/scryer"; // ideally add version info to the URL, e.g. scryer@0.1.0
+	await init();
+	// query stuff
 </script>
 ```
