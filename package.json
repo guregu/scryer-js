@@ -24,6 +24,12 @@
 	},
 	"main": "dist/scryer.js",
 	"types": "dist/index.d.ts",
+	"exports": {
+	  ".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/scryer.js"
+		}
+	},
 	"keywords": [
 		"prolog",
 		"prolog-interpreter",
