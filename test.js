@@ -154,7 +154,7 @@ test("throw/1", async (t) => {
 			return;
 			const extra = pl.queryOnce("X = 123.");
 			assert.deepEqual(extra.bindings.X, 123);
-		})
+		});
 	});
 });
 
