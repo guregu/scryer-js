@@ -1,5 +1,5 @@
 import test from "node:test";
-import assert, { deepEqual } from "node:assert";
+import assert from "node:assert";
 
 import {
 	init,
@@ -56,6 +56,7 @@ test("query", async (t) => {
 		const cmp = want[i++];
 		assert.deepEqual(answer.bindings.X, cmp);
 	}
+	assert.deepEqual(i, want.length);
 });
 
 test("query failure", async (t) => {
@@ -91,6 +92,7 @@ test("query var binding", async (t) => {
 		const cmp = want[i++];
 		assert.deepEqual(answer.bindings.X, cmp);
 	}
+	assert.deepEqual(i, want.length);
 });
 
 test("query drop early", async (t) => {
@@ -105,7 +107,7 @@ test("query drop early", async (t) => {
 		if (i === 3) break;
 	}
 	const extra = query.next();
-	assert.deepEqual(extra, { done: true, value: undefined });
+	assert.deepEqual(extra, { done: true, value: true });
 
 	t.test("control returns to machine", (t) => {
 		const second = pl.query(`X = ok.`).next();
@@ -119,12 +121,14 @@ test("query drop early", async (t) => {
 test("throw/1", async (t) => {
 	const pl = new Prolog();
 	let threw;
+	let query;
 	try {
-		const query = pl.query("throw(hi).");
+		query = pl.queryOnce("throw(hi).");
 		query.next();
 	} catch (ex) {
 		threw = ex;
 	} finally {
+		query?.return();
 		if (!threw) {
 			assert.fail("didn't throw");
 		}
@@ -135,6 +139,23 @@ test("throw/1", async (t) => {
 		assert.ok(isException(threw));
 		assert.deepEqual(threw.toProlog(), "throw('hi')");
 	}
+
+	await t.test("returns control", async (t) => {
+		for (let i = 0; i < 10; i++) {
+			try {
+				pl.queryOnce(`throw(${i}).`);
+			} catch (ex) {
+				if (!isException(ex)) assert.fail(`bad exception: ${ex} #${i}`);
+				assert.deepEqual(ex.term, i);
+			}
+		}
+		await t.test("success after throw returns", async (t) => {
+			t.skip("BUG: throw ball is sticky?");
+			return;
+			const extra = pl.queryOnce("X = 123.");
+			assert.deepEqual(extra.bindings.X, 123);
+		})
+	});
 });
 
 test("terms", async (t) => {
@@ -212,7 +233,6 @@ test("terms", async (t) => {
 					return;
 				}
 				const ans = pl.queryOnce("X = Y.", { bind: { Y: item.term } });
-				console.log(ans);
 				assert.deepEqual(ans.bindings.X, item.term);
 			});
 		}
@@ -256,4 +276,5 @@ test("consult module", async (t) => {
 		console.log(ex.cause);
 		throw ex;
 	}
+	assert.deepEqual(i, want.length);
 });

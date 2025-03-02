@@ -72,10 +72,11 @@ export class Prolog {
 	}
 }
 
-/** Running query. */
-export class Query implements Iterable<Answer, void, void> {
+/** Running query. An iterator that yields `Answer` on success and returns false on failure. */
+export class Query implements Iterable<Answer, boolean, void> {
 	#iter: QueryState;
 	#done = false;
+	#ok = 0;
 	constructor(iter: any /* QueryState */) {
 		// ^ want to avoid exporting QueryState
 		this.#iter = iter;
@@ -83,15 +84,15 @@ export class Query implements Iterable<Answer, void, void> {
 	[Symbol.iterator]() {
 		return this;
 	}
-	next(): IteratorResult<Answer, void> {
+	next(): IteratorResult<Answer, boolean> {
 		if (this.#done) {
-			return { done: true, value: undefined };
+			return this.#coda();
 		}
 
 		const got = this.#iter.next() as IteratorResult<ScryerResult, void>;
 		this.#done = got.done ?? false;
 		if (got.done) {
-			return { done: got.done, value: undefined };
+			return this.#coda();
 		}
 
 		// query failed
@@ -100,15 +101,18 @@ export class Query implements Iterable<Answer, void, void> {
 			// TODO: not 100% sure why this drop is necessary, looks like QueryState needs to iterate once past a failure
 			// otherwise the Machine holds on to it
 			this.#iter.drop();
-			return { done: true, value: undefined };
+			return this.#coda();
 		}
 
 		// query threw
 		if (got.value.type === "exception") {
+			this.#done = true;
+			this.#iter.drop();
 			throw new Exception(convert(got.value.exception));
 		}
 
 		// query success
+		this.#ok++;
 		// transform from internal format to public one
 		const entries = Object.entries(got.value.bindings).map(([k, v]) => [
 			k,
@@ -127,15 +131,16 @@ export class Query implements Iterable<Answer, void, void> {
 	 * This is useful to end a query early. Like finishing a query, control will be given back
 	 * to the `Machine`.
 	 */
-	return(): IteratorReturnResult<void> {
+	return(): IteratorReturnResult<boolean> {
 		if (!this.#done) {
 			this.#iter.drop();
 			this.#done = true;
 		}
-		return {
-			done: true,
-			value: undefined,
-		};
+		return this.#coda();
+	}
+
+	#coda(): IteratorReturnResult<boolean> {
+		return { done: true, value: this.#ok > 0 };
 	}
 }
 
