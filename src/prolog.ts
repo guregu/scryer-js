@@ -139,6 +139,12 @@ export class Query implements Iterable<Answer, boolean, void> {
 		return this.#coda();
 	}
 
+	/** True if this query has succeeded at least once, false if it failed, undefined if it hasn't run yet. */
+	get ok(): boolean | undefined {
+		if (!this.#done && this.#ok === 0) return undefined;
+		return this.#ok > 0;
+	}
+
 	#coda(): IteratorReturnResult<boolean> {
 		return { done: true, value: this.#ok > 0 };
 	}
@@ -147,7 +153,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 /** Leaf answer to a Prolog query. */
 export interface Answer {
 	/** Variable bindings. */
-	bindings: Record<string, Term>;
+	bindings: Bindings;
 }
 
 /** Variable bindings. */

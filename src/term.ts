@@ -19,7 +19,7 @@ export type Goal = Atom | Compound<Functor, Args>;
 export type PredicateIndicator = Compound<"/", [Atom, number]>;
 
 /** Terms or objects that encode into Terms. Uint8Array becomes a string. */
-export type Termlike = Term | Uint8Array | { toProlog: () => string };
+export type Termlike = Term | Literal | Exception | Uint8Array | { toProlog: () => string };
 
 /** Prolog atom term. */
 export class Atom {

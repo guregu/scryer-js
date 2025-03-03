@@ -57,15 +57,19 @@ test("query", async (t) => {
 		assert.deepEqual(answer.bindings.X, cmp);
 	}
 	assert.deepEqual(i, want.length);
+	assert.ok(query.ok);
 });
 
 test("query failure", async (t) => {
 	const pl = new Prolog();
 	let iter = 0;
-	for (const _ of pl.query("false.")) {
+	const query = pl.query("false.");
+	assert.deepEqual(query.ok, undefined);
+	for (const _ of query) {
 		iter++;
 	}
 	assert.deepEqual(iter, 0);
+	assert.deepEqual(query.ok, false);
 
 	await t.test("queryOnce", (t) => {
 		const once = pl.queryOnce("false.");
@@ -109,7 +113,7 @@ test("query drop early", async (t) => {
 	const extra = query.next();
 	assert.deepEqual(extra, { done: true, value: true });
 
-	t.test("control returns to machine", (t) => {
+	await t.test("control returns to machine", (t) => {
 		const second = pl.query(`X = ok.`).next();
 		assert.deepEqual(second, {
 			done: false,
