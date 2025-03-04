@@ -19,7 +19,12 @@ export type Goal = Atom | Compound<Functor, Args>;
 export type PredicateIndicator = Compound<"/", [Atom, number]>;
 
 /** Terms or objects that encode into Terms. Uint8Array becomes a string. */
-export type Termlike = Term | Literal | Exception | Uint8Array | { toProlog: () => string };
+export type Termlike =
+	| Term
+	| Literal
+	| Exception
+	| Uint8Array
+	| { toProlog: () => string };
 
 /** Prolog atom term. */
 export class Atom {
@@ -249,6 +254,16 @@ export function toProlog(obj: Termlike): string {
 	if (Array.isArray(obj)) return `[${obj.map(toProlog).join(",")}]`;
 
 	throw new Error("scryer: can't convert object to Prolog term: " + obj);
+}
+
+/** Template literal function for escaping Prolog text. `${values}` will be interpreted as Prolog terms. */
+export function prolog(text: TemplateStringsArray, ...values: Termlike[]) {
+	let str = "";
+	for (let i = 0; i < text.length; i++) {
+		str += text[i];
+		if (values[i]) str += toProlog(values[i]);
+	}
+	return str;
 }
 
 // TODO: might be nice if escapeAtom could avoid the quoting when it can,

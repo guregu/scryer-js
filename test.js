@@ -10,6 +10,7 @@ import {
 	Rational,
 	Exception,
 	toProlog,
+	prolog,
 	isTerm,
 	isNumber,
 	isString,
@@ -214,6 +215,10 @@ test("terms", async (t) => {
 		for (const item of cases) {
 			await t.test(`toProlog(${item.term})`, (t) => {
 				assert.deepEqual(toProlog(item.term), item.text);
+			});
+			await t.test("prolog`X = ${" + item.term.toString() + "}`", (t) => {
+				const tmpl = prolog`${new Variable("X")} = ${item.term}`;
+				assert.deepEqual(tmpl, `X = ${item.text}`);
 			});
 		}
 	});
