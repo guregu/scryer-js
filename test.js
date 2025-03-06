@@ -22,10 +22,6 @@ import {
 	isException,
 } from "./dist/scryer.js";
 
-await test("load", async (t) => {
-	await init();
-});
-
 test("query", async (t) => {
 	const pl = new Prolog();
 	const query = pl.query(`

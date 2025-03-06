@@ -9,9 +9,7 @@ npm install scryer
 ```
 
 ```typescript
-import { init, Prolog } from "scryer";
-
-await init();
+import { Prolog } from "scryer";
 
 const pl = new Prolog();
 const query = pl.query("X = 1 ; X = 2.");
@@ -24,8 +22,7 @@ For browsers, you can use [esm.sh](https://esm.sh) or other CDNs to import it di
 
 ```html
 <script type="module">
-	import { init, Prolog } from "https://esm.sh/scryer"; // ideally add version info to the URL, e.g. scryer@0.1.0
-	await init();
+	import { Prolog } from "https://esm.sh/scryer@0.5.0"; // make sure to use the latest version instead :-)
 	// query stuff
 </script>
 ```
