@@ -24,6 +24,9 @@ const initOnce = (async function init() {
 	await initScryer(module);
 })();
 
+await initOnce;
+
+/** @deprecated No longer necessary to call */
 export async function init() {
 	await initOnce;
 }
