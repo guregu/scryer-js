@@ -266,9 +266,40 @@ export function prolog(text: TemplateStringsArray, ...values: Termlike[]) {
 	return str;
 }
 
-// TODO: might be nice if escapeAtom could avoid the quoting when it can,
-// but it is easier to just quote everything.
+function needsEscape(atom: string) {
+	// Although modern Prologs accept unquoted atoms with various unicode characters,
+	// JS doesn't give us a native way to check unicode character classes.
+	// This is a best-effort check for ASCII characters.
+
+	if (atom.length === 0) {
+		return true;
+	}
+
+	let code = atom.charCodeAt(0);
+	// first character must be a-z
+	if (!(code >= 97 && code <= 122)) {
+		return true;
+	}
+
+	for (let i = 1; i < atom.length; i++) {
+		code = atom.charCodeAt(i);
+		if (
+			(code >= 97 && code <= 122) /* a-z */ ||
+			(code >= 65 && code <= 90) /* A-Z */ ||
+			(code >= 48 && code <= 57) /* 0-9 */ ||
+			code === 95 /* _ */
+		) {
+			continue;
+		}
+		return true;
+	}
+
+	return false;
+}
+
 export function escapeAtom(atom: string) {
+	if (!needsEscape(atom)) return atom;
+
 	return `'${atom
 		.replaceAll("\\", "\\\\")
 		.replaceAll(`'`, `\\'`)
