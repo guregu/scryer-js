@@ -33,11 +33,22 @@ export type QueryOptions = {
 	bind?: Record<string, Termlike>;
 };
 
+export type PrologOptions = {
+	/** Strategy for handling concurrent queries (which are currently unsupported).
+	 * `throw` will throw an exception if you try to start a new query while one is already active.
+	 * `interrupt` will drop the existing query before starting a new one.
+	 */
+	concurrency: "throw" | "interrupt";
+};
+
 /** Prolog interpreter. */
 export class Prolog {
 	#machine;
-	constructor() {
+	#running?: Query;
+	#shouldInterrupt: boolean;
+	constructor(options?: Partial<PrologOptions>) {
 		this.#machine = new MachineBuilder().build();
+		this.#shouldInterrupt = options?.concurrency === "interrupt";
 	}
 	/**
 	 * Runs a query.
@@ -46,11 +57,17 @@ export class Prolog {
 	 * doing a query an error will be thrown.
 	 */
 	query(goal: string, options: QueryOptions = {}): Query {
+		if (this.#shouldInterrupt && this.busy) {
+			this.#running?.return(true);
+		}
+
 		if (options.bind) {
 			goal = bindVars(goal, options.bind);
 		}
 		const iter = this.#machine.runQuery(goal);
-		return new Query(iter);
+		const query = new Query(iter);
+		this.#running = query;
+		return query;
 	}
 	/** Runs a query, returning at most one answer and discarding any others. */
 	queryOnce(goal: string, options: QueryOptions = {}): Answer | false {
@@ -70,6 +87,11 @@ export class Prolog {
 	consultText(program: string, module = "user") {
 		this.#machine.consultModuleString(module, program);
 	}
+
+	/** Returns true if there is a currently running query. */
+	get busy() {
+		return this.#running ? !this.#running.done : false;
+	}
 }
 
 /** Running query. An iterator that yields `Answer` on success and returns false on failure. */
@@ -77,6 +99,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 	#iter: QueryState;
 	#done = false;
 	#ok = 0;
+	#interrupted = false;
 	constructor(iter: any /* QueryState */) {
 		// ^ want to avoid exporting QueryState
 		this.#iter = iter;
@@ -85,6 +108,9 @@ export class Query implements Iterable<Answer, boolean, void> {
 		return this;
 	}
 	next(): IteratorResult<Answer, boolean> {
+		if (this.#interrupted) {
+			throw new Error("query interrupted by newer query");
+		}
 		if (this.#done) {
 			return this.#coda();
 		}
@@ -131,10 +157,11 @@ export class Query implements Iterable<Answer, boolean, void> {
 	 * This is useful to end a query early. Like finishing a query, control will be given back
 	 * to the `Machine`.
 	 */
-	return(): IteratorReturnResult<boolean> {
+	return(interrupted?: boolean): IteratorReturnResult<boolean> {
 		if (!this.#done) {
 			this.#iter.drop();
 			this.#done = true;
+			this.#interrupted = !!interrupted;
 		}
 		return this.#coda();
 	}
@@ -143,6 +170,10 @@ export class Query implements Iterable<Answer, boolean, void> {
 	get ok(): boolean | undefined {
 		if (!this.#done && this.#ok === 0) return undefined;
 		return this.#ok > 0;
+	}
+
+	get done(): boolean {
+		return this.#done;
 	}
 
 	#coda(): IteratorReturnResult<boolean> {

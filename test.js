@@ -123,6 +123,40 @@ test("query drop early", async (t) => {
 	});
 });
 
+test("concurrency", async (t) => {
+	await t.test("Prolog.busy", (t) => {
+		const pl = new Prolog();
+		assert.ok(!pl.busy);
+		const query = pl.query(`X = 1 ; X = 2.`);
+		assert.ok(pl.busy);
+		query.next();
+		assert.ok(pl.busy);
+		query.next();
+		query.next(); // we need to advance twice here, unfortuantely
+		assert.ok(!pl.busy);
+	});
+
+	await t.test("interrupt", (t) => {
+		const pl = new Prolog({ concurrency: "interrupt" });
+		const q1 = pl.query(`X = 1 ; X = 2.`);
+		q1.next();
+		const q2 = pl.query(`X = hello.`);
+		assert.deepEqual(q2.next(), {
+			done: false,
+			value: { bindings: { X: new Atom("hello") } },
+		});
+
+		// old query should throw
+		let threw;
+		try {
+			q1.next();
+		} catch (ex) {
+			threw = ex;
+		}
+		assert.ok(threw);
+	});
+});
+
 test("throw/1", async (t) => {
 	const pl = new Prolog();
 	let threw;
