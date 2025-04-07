@@ -51,7 +51,9 @@ const pl = new Prolog();
 pl.consultText(kb1);
 pl.consultText(kb2);
 
-const query = pl.query("problem(1, Rows), sudoku(Rows), maplist(portray_clause, Rows).");
+const query = pl.query(
+	"problem(1, Rows), sudoku(Rows), maplist(portray_clause, Rows).",
+);
 for (const answer of query) {
 	console.log(answer.bindings);
 }
@@ -66,6 +68,7 @@ For browsers, you can use [esm.sh](https://esm.sh) or other CDNs to import it di
 	// query stuff
 </script>
 ```
+
 ## Development
 
 After cloning the repository, make sure to initialize the submodules:
@@ -73,11 +76,13 @@ After cloning the repository, make sure to initialize the submodules:
 ```bash
 git submodule update --init --recursive
 ```
+
 Alternatively, you can do this directly during the clone:
 
 ```bash
 git clone --recurse-submodules -j8 <repository-url>
 ```
+
 make sure to have [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) installed.
 
 Once the submodules are in place and wasm-pack is installed, run the following commands:
