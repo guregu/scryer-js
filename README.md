@@ -68,7 +68,7 @@ For browsers, you can use [esm.sh](https://esm.sh) or other CDNs to import it di
 ```
 ## Development
 
-After cloning the repository, make sure to initialize and update the submodules:
+After cloning the repository, make sure to initialize the submodules:
 
 ```bash
 git submodule update --init --recursive
