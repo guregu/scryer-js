@@ -37,16 +37,26 @@ export type PrologOptions = {
 	/** Strategy for handling concurrent queries (which are currently unsupported).
 	 * `throw` will throw an exception if you try to start a new query while one is already active.
 	 * `interrupt` will drop the existing query before starting a new one.
+	 *
+	 * @default "throw"
 	 */
 	concurrency: "throw" | "interrupt";
 };
 
-/** Prolog interpreter. */
-export class Prolog {
+/** Name of the event emitted when interpreter is ready to query. */
+export const EVENT_READY = "ready";
+
+/**
+ * Prolog interpreter.
+ *
+ * @fires Event#ready
+ */
+export class Prolog extends EventTarget {
 	#machine;
 	#running?: Query;
 	#shouldInterrupt: boolean;
 	constructor(options?: Partial<PrologOptions>) {
+		super();
 		this.#machine = new MachineBuilder().build();
 		this.#shouldInterrupt = options?.concurrency === "interrupt";
 	}
@@ -65,7 +75,7 @@ export class Prolog {
 			goal = bindVars(goal, options.bind);
 		}
 		const iter = this.#machine.runQuery(goal);
-		const query = new Query(iter);
+		const query = new Query(this, iter);
 		this.#running = query;
 		return query;
 	}
@@ -96,12 +106,14 @@ export class Prolog {
 
 /** Running query. An iterator that yields `Answer` on success and returns false on failure. */
 export class Query implements Iterable<Answer, boolean, void> {
+	#pl: Prolog;
 	#iter: QueryState;
 	#done = false;
 	#ok = 0;
 	#interrupted = false;
-	constructor(iter: any /* QueryState */) {
+	constructor(pl: Prolog, iter: any /* QueryState */) {
 		// ^ want to avoid exporting QueryState
+		this.#pl = pl;
 		this.#iter = iter;
 	}
 	[Symbol.iterator]() {
@@ -118,6 +130,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 		const got = this.#iter.next() as IteratorResult<ScryerResult, void>;
 		this.#done = got.done ?? false;
 		if (got.done) {
+			this.#dispatchReady();
 			return this.#coda();
 		}
 
@@ -127,6 +140,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 			// TODO: not 100% sure why this drop is necessary, looks like QueryState needs to iterate once past a failure
 			// otherwise the Machine holds on to it
 			this.#iter.drop();
+			this.#dispatchReady();
 			return this.#coda();
 		}
 
@@ -134,6 +148,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 		if (got.value.type === "exception") {
 			this.#done = true;
 			this.#iter.drop();
+			this.#dispatchReady();
 			throw new Exception(convert(got.value.exception));
 		}
 
@@ -162,6 +177,9 @@ export class Query implements Iterable<Answer, boolean, void> {
 			this.#iter.drop();
 			this.#done = true;
 			this.#interrupted = !!interrupted;
+			if (!this.#interrupted) {
+				this.#dispatchReady();
+			}
 		}
 		return this.#coda();
 	}
@@ -178,6 +196,10 @@ export class Query implements Iterable<Answer, boolean, void> {
 
 	#coda(): IteratorReturnResult<boolean> {
 		return { done: true, value: this.#ok > 0 };
+	}
+
+	#dispatchReady() {
+		this.#pl.dispatchEvent(new Event(EVENT_READY));
 	}
 }
 

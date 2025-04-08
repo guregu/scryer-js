@@ -27,7 +27,11 @@ await test("load", async (t) => {
 });
 
 test("query", async (t) => {
+	let readies = 0;
 	const pl = new Prolog();
+	pl.addEventListener("ready", () => {
+		readies++;
+	});
 	const query = pl.query(`
 		  X = 1
 		; X = 9007199254740991  % max safe integer
@@ -59,10 +63,15 @@ test("query", async (t) => {
 	}
 	assert.deepEqual(i, want.length);
 	assert.ok(query.ok);
+	assert.deepEqual(readies, 1);
 });
 
 test("query failure", async (t) => {
+	let readies = 0;
 	const pl = new Prolog();
+	pl.addEventListener("ready", () => {
+		readies++;
+	});
 	let iter = 0;
 	const query = pl.query("false.");
 	assert.deepEqual(query.ok, undefined);
@@ -71,19 +80,26 @@ test("query failure", async (t) => {
 	}
 	assert.deepEqual(iter, 0);
 	assert.deepEqual(query.ok, false);
+	assert.deepEqual(readies, 1);
 
 	await t.test("queryOnce", (t) => {
 		const once = pl.queryOnce("false.");
 		assert.deepEqual(once, false);
+		assert.deepEqual(readies, 2);
 	});
 });
 
 test("queryOnce returns control", async (t) => {
+	let readies = 0;
 	const pl = new Prolog();
+	pl.addEventListener("ready", () => {
+		readies++;
+	});
 	for (let i = 0; i < 10; i++) {
 		const answer = pl.queryOnce("repeat, X = 1.");
 		assert.deepEqual(answer.bindings.X, 1);
 	}
+	assert.deepEqual(readies, 10);
 });
 
 test("query var binding", async (t) => {
@@ -101,7 +117,11 @@ test("query var binding", async (t) => {
 });
 
 test("query drop early", async (t) => {
+	let readies = 0;
 	const pl = new Prolog();
+	pl.addEventListener("ready", () => {
+		readies++;
+	});
 	const query = pl.query(`repeat, X = 1.`);
 	const want = [1, 1, 1];
 	let i = 0;
@@ -113,6 +133,7 @@ test("query drop early", async (t) => {
 	}
 	const extra = query.next();
 	assert.deepEqual(extra, { done: true, value: true });
+	assert.deepEqual(readies, 1);
 
 	await t.test("control returns to machine", (t) => {
 		const second = pl.query(`X = ok.`).next();
@@ -125,7 +146,11 @@ test("query drop early", async (t) => {
 
 test("concurrency", async (t) => {
 	await t.test("Prolog.busy", (t) => {
+		let readies = 0;
 		const pl = new Prolog();
+		pl.addEventListener("ready", () => {
+			readies++;
+		});
 		assert.ok(!pl.busy);
 		const query = pl.query(`X = 1 ; X = 2.`);
 		assert.ok(pl.busy);
@@ -134,6 +159,7 @@ test("concurrency", async (t) => {
 		query.next();
 		query.next(); // we need to advance twice here, unfortuantely
 		assert.ok(!pl.busy);
+		assert.deepEqual(readies, 1);
 	});
 
 	await t.test("interrupt", (t) => {
