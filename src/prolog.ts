@@ -33,11 +33,32 @@ export type QueryOptions = {
 	bind?: Record<string, Termlike>;
 };
 
-/** Prolog interpreter. */
-export class Prolog {
+export type PrologOptions = {
+	/** Strategy for handling concurrent queries (which are currently unsupported).
+	 * `throw` will throw an exception if you try to start a new query while one is already active.
+	 * `interrupt` will drop the existing query before starting a new one.
+	 *
+	 * @default "throw"
+	 */
+	concurrency: "throw" | "interrupt";
+};
+
+/** Name of the event emitted when interpreter is ready to query. */
+export const EVENT_READY = "ready";
+
+/**
+ * Prolog interpreter.
+ *
+ * @fires Event#ready
+ */
+export class Prolog extends EventTarget {
 	#machine;
-	constructor() {
+	#running?: Query;
+	#shouldInterrupt: boolean;
+	constructor(options?: Partial<PrologOptions>) {
+		super();
 		this.#machine = new MachineBuilder().build();
+		this.#shouldInterrupt = options?.concurrency === "interrupt";
 	}
 	/**
 	 * Runs a query.
@@ -46,11 +67,17 @@ export class Prolog {
 	 * doing a query an error will be thrown.
 	 */
 	query(goal: string, options: QueryOptions = {}): Query {
+		if (this.#shouldInterrupt && this.busy) {
+			this.#running?.return(true);
+		}
+
 		if (options.bind) {
 			goal = bindVars(goal, options.bind);
 		}
 		const iter = this.#machine.runQuery(goal);
-		return new Query(iter);
+		const query = new Query(this, iter);
+		this.#running = query;
+		return query;
 	}
 	/** Runs a query, returning at most one answer and discarding any others. */
 	queryOnce(goal: string, options: QueryOptions = {}): Answer | false {
@@ -70,21 +97,32 @@ export class Prolog {
 	consultText(program: string, module = "user") {
 		this.#machine.consultModuleString(module, program);
 	}
+
+	/** Returns true if there is a currently running query. */
+	get busy() {
+		return this.#running ? !this.#running.done : false;
+	}
 }
 
 /** Running query. An iterator that yields `Answer` on success and returns false on failure. */
 export class Query implements Iterable<Answer, boolean, void> {
+	#pl: Prolog;
 	#iter: QueryState;
 	#done = false;
 	#ok = 0;
-	constructor(iter: any /* QueryState */) {
+	#interrupted = false;
+	constructor(pl: Prolog, iter: any /* QueryState */) {
 		// ^ want to avoid exporting QueryState
+		this.#pl = pl;
 		this.#iter = iter;
 	}
 	[Symbol.iterator]() {
 		return this;
 	}
 	next(): IteratorResult<Answer, boolean> {
+		if (this.#interrupted) {
+			throw new Error("query interrupted by newer query");
+		}
 		if (this.#done) {
 			return this.#coda();
 		}
@@ -92,6 +130,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 		const got = this.#iter.next() as IteratorResult<ScryerResult, void>;
 		this.#done = got.done ?? false;
 		if (got.done) {
+			this.#dispatchReady();
 			return this.#coda();
 		}
 
@@ -101,6 +140,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 			// TODO: not 100% sure why this drop is necessary, looks like QueryState needs to iterate once past a failure
 			// otherwise the Machine holds on to it
 			this.#iter.drop();
+			this.#dispatchReady();
 			return this.#coda();
 		}
 
@@ -108,6 +148,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 		if (got.value.type === "exception") {
 			this.#done = true;
 			this.#iter.drop();
+			this.#dispatchReady();
 			throw new Exception(convert(got.value.exception));
 		}
 
@@ -131,10 +172,14 @@ export class Query implements Iterable<Answer, boolean, void> {
 	 * This is useful to end a query early. Like finishing a query, control will be given back
 	 * to the `Machine`.
 	 */
-	return(): IteratorReturnResult<boolean> {
+	return(interrupted?: boolean): IteratorReturnResult<boolean> {
 		if (!this.#done) {
 			this.#iter.drop();
 			this.#done = true;
+			this.#interrupted = !!interrupted;
+			if (!this.#interrupted) {
+				this.#dispatchReady();
+			}
 		}
 		return this.#coda();
 	}
@@ -145,8 +190,16 @@ export class Query implements Iterable<Answer, boolean, void> {
 		return this.#ok > 0;
 	}
 
+	get done(): boolean {
+		return this.#done;
+	}
+
 	#coda(): IteratorReturnResult<boolean> {
 		return { done: true, value: this.#ok > 0 };
+	}
+
+	#dispatchReady() {
+		this.#pl.dispatchEvent(new Event(EVENT_READY));
 	}
 }
 
