@@ -21,6 +21,7 @@ export type PredicateIndicator = Compound<"/", [Atom, number]>;
 /** Terms or objects that encode into Terms. Uint8Array becomes a string. */
 export type Termlike =
 	| Term
+	| Float
 	| Literal
 	| Exception
 	| Uint8Array
@@ -219,11 +220,41 @@ export function piTerm(name: string, arity: number) {
 	return new Compound("/", [new Atom(name), arity]);
 }
 
+const FLOAT_FORMAT = new Intl.NumberFormat("en-US", {
+	useGrouping: false,
+	minimumFractionDigits: 1,
+	notation: "standard",
+});
+
+/** Number that will always encode to a Prolog float. */
+export class Float {
+	value: number;
+	constructor(value: number) {
+		this.value = value;
+	}
+	[Symbol.toPrimitive]() {
+		return this.value;
+	}
+	toProlog() {
+		if (!Number.isFinite(this.value))
+			throw new Error(`can't encode ${this.value} to Prolog term`);
+		return FLOAT_FORMAT.format(this.value);
+	}
+	toJSON() {
+		return this.value;
+	}
+}
+
+const NUMBER_FORMAT = new Intl.NumberFormat("en-US", {
+	useGrouping: false,
+	notation: "standard",
+});
+
 /** Converts the given term object into Prolog text. */
-export function toProlog(obj: Termlike): string {
+export function toProlog(obj: Termlike | Termlike[]): string {
 	switch (typeof obj) {
 		case "number":
-			return obj.toString();
+			return NUMBER_FORMAT.format(obj);
 		case "bigint":
 			return obj.toString();
 		case "string":

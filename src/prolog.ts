@@ -30,7 +30,14 @@ export async function init() {
 
 export type QueryOptions = {
 	/** Optional variable bindings to prepend to a query. */
-	bind?: Record<string, Termlike>;
+	bind: Record<string, Termlike>;
+
+	/** Decoding mode for Prolog integers.
+	 * `"fit"` (the default) will use JavaScript numbers within the safe integer range, and bigints otherwise.
+	 * `"bigint"` will use bigints for all integers.
+	 * `"number"` will use JS numbers (i.e. floats) for all integers, even unsafe ones.
+	 */
+	integers: "fit" | "bigint" | "number";
 };
 
 export type PrologOptions = {
@@ -66,7 +73,7 @@ export class Prolog extends EventTarget {
 	 * You can only have one query at a time. If you try to do anything with this machine while
 	 * doing a query an error will be thrown.
 	 */
-	query(goal: string, options: QueryOptions = {}): Query {
+	query(goal: string, options: Partial<QueryOptions> = {}): Query {
 		if (this.#shouldInterrupt && this.busy) {
 			this.#running?.return(true);
 		}
@@ -75,12 +82,12 @@ export class Prolog extends EventTarget {
 			goal = bindVars(goal, options.bind);
 		}
 		const iter = this.#machine.runQuery(goal);
-		const query = new Query(this, iter);
+		const query = new Query(this, iter, options);
 		this.#running = query;
 		return query;
 	}
 	/** Runs a query, returning at most one answer and discarding any others. */
-	queryOnce(goal: string, options: QueryOptions = {}): Answer | false {
+	queryOnce(goal: string, options: Partial<QueryOptions> = {}): Answer | false {
 		let query;
 		try {
 			query = this.query(goal, options);
@@ -108,13 +115,19 @@ export class Prolog extends EventTarget {
 export class Query implements Iterable<Answer, boolean, void> {
 	#pl: Prolog;
 	#iter: QueryState;
+	#options: Partial<QueryOptions>;
 	#done = false;
 	#ok = 0;
 	#interrupted = false;
-	constructor(pl: Prolog, iter: any /* QueryState */) {
+	constructor(
+		pl: Prolog,
+		iter: any /* QueryState */,
+		options: Partial<QueryOptions>,
+	) {
 		// ^ want to avoid exporting QueryState
 		this.#pl = pl;
 		this.#iter = iter;
+		this.#options = options;
 	}
 	[Symbol.iterator]() {
 		return this;
@@ -149,7 +162,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 			this.#done = true;
 			this.#iter.drop();
 			this.#dispatchReady();
-			throw new Exception(convert(got.value.exception));
+			throw new Exception(convert(got.value.exception, this.#options));
 		}
 
 		// query success
@@ -157,7 +170,7 @@ export class Query implements Iterable<Answer, boolean, void> {
 		// transform from internal format to public one
 		const entries = Object.entries(got.value.bindings).map(([k, v]) => [
 			k,
-			convert(v),
+			convert(v, this.#options),
 		]);
 		return {
 			value: {
@@ -281,15 +294,18 @@ interface ScryerException {
 	exception: ScryerTerm;
 }
 
-function convert(term: ScryerTerm): Term {
+function convert(term: ScryerTerm, options: Partial<QueryOptions>): Term {
 	if (!isScryerTerm(term)) {
 		throw new Error(`not a term: ${term}`);
 	}
 	switch (term.type) {
 		case "integer":
-			return int(term.integer);
+			return int(term.integer, options.integers);
 		case "rational":
-			return new Rational(int(term.numerator), int(term.denominator));
+			return new Rational(
+				int(term.numerator, options.integers),
+				int(term.denominator, options.integers),
+			);
 		case "float":
 			return term.float;
 		case "atom":
@@ -297,14 +313,14 @@ function convert(term: ScryerTerm): Term {
 		case "string":
 			return term.string;
 		case "list":
-			return term.list.map(convert);
+			return term.list.map((x) => convert(x, options));
 		case "compound":
-			const args = term.args.map(convert) as Args;
+			const args = term.args.map((x) => convert(x, options)) as Args;
 			return new Compound(term.functor, args);
 		case "variable":
 			return new Variable(term.variable);
 		case "exception":
-			return new Exception(convert(term.exception));
+			return new Exception(convert(term.exception, options));
 	}
 }
 
@@ -317,11 +333,20 @@ function isScryerTerm(v: unknown): v is ScryerTerm {
 	);
 }
 
-function int(x: bigint): number | bigint {
-	if (x > Number.MAX_SAFE_INTEGER || x < Number.MIN_SAFE_INTEGER) {
-		return x;
+function int(x: bigint, mode = "fit"): number | bigint {
+	switch (mode) {
+		case "fit":
+			if (x > Number.MAX_SAFE_INTEGER || x < Number.MIN_SAFE_INTEGER) {
+				return x;
+			}
+			return Number(x);
+		case "bigint":
+			return x;
+		case "number":
+			return Number(x);
+		default:
+			throw new Error(`invalid "integers" option: ${mode}`);
 	}
-	return Number(x);
 }
 
 function bindVars(query: string, bind: Record<string, Termlike>) {

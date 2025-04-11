@@ -9,6 +9,7 @@ import {
 	Variable,
 	Rational,
 	Exception,
+	Float,
 	toProlog,
 	prolog,
 	isTerm,
@@ -326,6 +327,37 @@ test("terms", async (t) => {
 			});
 		}
 	});
+});
+
+test("integer mode", async (t) => {
+	const cases = {
+		bigint: { X: 123n, Y: 1, Z: 9007199254740992n },
+		fit: { X: 123, Y: 1, Z: 9007199254740992n },
+		number: { X: 123, Y: 1, Z: 9007199254740992 /* Z might be inaccurate */ },
+	};
+	for (const [mode, want] of Object.entries(cases)) {
+		await t.test(mode, async (t) => {
+			const pl = new Prolog();
+			const q = pl.queryOnce(
+				"X = 123, Y = 1.0, Z = 9007199254740992, integer(X), float(Y), integer(Z).",
+				{ integers: mode },
+			);
+			assert.deepEqual(q.bindings, want);
+		});
+	}
+});
+
+test("Float type", async (t) => {
+	const f1 = new Float(123);
+	assert.deepEqual(JSON.stringify(f1), "123");
+	assert.deepEqual(f1.toProlog(), "123.0");
+
+	const pl = new Prolog();
+	const q1 = pl.queryOnce("true.", {
+		bind: { X: new Float(1), Y: 2n },
+		integers: "bigint",
+	});
+	assert.deepEqual(q1.bindings, { X: 1.0, Y: 2n });
 });
 
 test("consult module", async (t) => {
