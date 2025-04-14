@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert";
 
 import {
-	init,
 	Prolog,
 	Atom,
 	Compound,
@@ -22,10 +21,6 @@ import {
 	isRational,
 	isException,
 } from "./dist/scryer.js";
-
-await test("load", async (t) => {
-	await init();
-});
 
 test("query", async (t) => {
 	let readies = 0;
